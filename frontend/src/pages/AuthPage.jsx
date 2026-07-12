@@ -3,13 +3,16 @@ import {
   Anchor,
   Button,
   Checkbox,
+  Modal,
   PasswordInput,
+  Stack,
   TextInput,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
+import { useDisclosure } from '@mantine/hooks'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   IconArrowRight,
   IconBuildingWarehouse,
@@ -20,24 +23,27 @@ import {
   IconUser,
 } from '@tabler/icons-react'
 import { z } from 'zod'
+import { apiClient } from '../api/client.js'
+import { useAuth } from '../auth/useAuth.js'
 
 const emailRule = z.string().trim().email('Enter a valid work email')
 
 const loginSchema = z.object({
   email: emailRule,
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(8, 'Use at least 8 characters'),
   remember: z.boolean().optional(),
 })
+
+const passwordRule = z
+  .string()
+  .min(8, 'Use at least 8 characters')
+  .refine((value) => new TextEncoder().encode(value).length <= 72, 'Password must be at most 72 bytes')
 
 const signupSchema = z
   .object({
     name: z.string().trim().min(2, 'Enter your full name'),
     email: emailRule,
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters')
-      .regex(/[A-Z]/, 'Include at least one uppercase letter')
-      .regex(/[0-9]/, 'Include at least one number'),
+    password: passwordRule,
     confirmPassword: z.string(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -47,10 +53,15 @@ const signupSchema = z
 
 export function AuthPage({ mode }) {
   const isSignup = mode === 'signup'
+  const { login, signup } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [forgotOpened, forgotControls] = useDisclosure(false)
   const schema = useMemo(() => (isSignup ? signupSchema : loginSchema), [isSignup])
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
@@ -59,20 +70,31 @@ export function AuthPage({ mode }) {
       : { email: '', password: '', remember: true },
   })
 
-  const onSubmit = async () => {
-    notifications.show({
-      color: 'teal',
-      title: isSignup ? 'Account details validated' : 'Sign-in details validated',
-      message: 'The backend authentication endpoint is ready to be connected.',
-    })
-  }
+  const onSubmit = async (values) => {
+    try {
+      if (isSignup) {
+        await signup({ name: values.name.trim(), email: values.email.trim(), password: values.password })
+      } else {
+        await login({ email: values.email.trim(), password: values.password }, values.remember)
+      }
 
-  const handleForgotPassword = () => {
-    notifications.show({
-      color: 'teal',
-      title: 'Password recovery',
-      message: 'Password recovery will be enabled when the backend endpoint is available.',
-    })
+      notifications.show({
+        color: 'teal',
+        title: isSignup ? 'Account created' : 'Welcome back',
+        message: isSignup ? 'Your Employee account is ready.' : 'You are signed in to AssetFlow.',
+      })
+      navigate(location.state?.from?.pathname || '/dashboard', { replace: true })
+    } catch (error) {
+      const response = error.response?.data
+      Object.entries(response?.errors || {}).forEach(([field, message]) => {
+        if (['name', 'email', 'password'].includes(field)) setError(field, { message })
+      })
+      notifications.show({
+        color: 'red',
+        title: isSignup ? 'Could not create account' : 'Could not sign in',
+        message: response?.message || 'Unable to reach AssetFlow. Check that the server is running.',
+      })
+    }
   }
 
   return (
@@ -183,7 +205,7 @@ export function AuthPage({ mode }) {
                     component="button"
                     type="button"
                     size="sm"
-                    onClick={handleForgotPassword}
+                    onClick={forgotControls.open}
                   >
                     Forgot password?
                   </Anchor>
@@ -214,7 +236,70 @@ export function AuthPage({ mode }) {
           </div>
         </section>
       </div>
+      <ForgotPasswordModal opened={forgotOpened} onClose={forgotControls.close} />
     </main>
+  )
+}
+
+function ForgotPasswordModal({ opened, onClose }) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(z.object({ email: emailRule })),
+    defaultValues: { email: '' },
+  })
+
+  const closeModal = () => {
+    reset()
+    onClose()
+  }
+
+  const submitRequest = async ({ email }) => {
+    try {
+      const { data } = await apiClient.post('/api/auth/forgot-password', { email: email.trim() })
+      closeModal()
+      notifications.show({ color: 'teal', title: 'Request received', message: data.message })
+    } catch (error) {
+      const response = error.response?.data
+      if (response?.errors?.email) setError('email', { message: response.errors.email })
+      notifications.show({
+        color: 'red',
+        title: 'Could not send request',
+        message: response?.message || 'Unable to reach AssetFlow. Check that the server is running.',
+      })
+    }
+  }
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={closeModal}
+      title="Reset your password"
+      centered
+      classNames={{ title: 'app-modal-title', header: 'app-modal-header', body: 'app-modal-body', content: 'app-modal-content' }}
+    >
+      <form onSubmit={handleSubmit(submitRequest)}>
+        <Stack gap="lg">
+          <p className="password-modal-copy">Enter your work email and we will send password reset instructions if an account exists.</p>
+          <TextInput
+            label="Work email"
+            type="email"
+            placeholder="name@company.com"
+            leftSection={<IconMail size={18} />}
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <div className="auth-modal-actions">
+            <Button variant="default" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" color="teal" loading={isSubmitting}>Send instructions</Button>
+          </div>
+        </Stack>
+      </form>
+    </Modal>
   )
 }
 

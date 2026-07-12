@@ -1,7 +1,8 @@
 import { prisma } from "../database/prisma.js";
-
-const MYSQL_INT_MAX = 2147483647;
-const MAX_TRANSACTION_ATTEMPTS = 3;
+import { logActivity } from "../services/activity-log.js";
+import { createNotification } from "../services/notifications.js";
+import { mysqlSignedIntMaximum, runSerializableTransaction } from "../utils/db.js";
+import { findUnexpectedFields } from "../utils/validation.js";
 
 const publicReturnRequestSelect = {
   allocationId: true,
@@ -11,25 +12,25 @@ const publicReturnRequestSelect = {
 
 const returnRequestLookupSelect = {
   allocationId: true,
+  assetId: true,
   allocatedToUserId: true,
+  allocatedById: true,
   returnedAt: true,
   status: true,
+  asset: { select: { assetTag: true, name: true } },
 };
 
 class AllocationNotFoundError extends Error {}
-
 class AllocationNotActiveError extends Error {}
 
 function validateReturnRequest(body) {
   const errors = {};
-  const unexpectedFields = Object.keys(body ?? {}).filter(
-    (field) => field !== "allocationId",
-  );
+  const unexpectedFields = findUnexpectedFields(body, ["allocationId"]);
 
   if (
     !Number.isInteger(body?.allocationId) ||
     body.allocationId <= 0 ||
-    body.allocationId > MYSQL_INT_MAX
+    body.allocationId > mysqlSignedIntMaximum
   ) {
     errors.allocationId = "Allocation ID must be a positive integer.";
   }
@@ -41,71 +42,70 @@ function validateReturnRequest(body) {
   return errors;
 }
 
-async function runSerializableTransaction(work) {
-  for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
-    try {
-      return await prisma.$transaction(work, {
-        isolationLevel: "Serializable",
-      });
-    } catch (error) {
-      if (error?.code !== "P2034" || attempt === MAX_TRANSACTION_ATTEMPTS) {
-        throw error;
-      }
-    }
-  }
-
-  throw new Error("Unable to complete the transaction.");
-}
-
 async function createReturnRequest(request, response, next) {
   const errors = validateReturnRequest(request.body);
 
   if (Object.keys(errors).length > 0) {
-    return response.status(400).json({
-      message: "Invalid request data.",
-      errors,
-    });
+    return response.status(400).json({ message: "Invalid request data.", errors });
   }
 
   try {
-    const returnRequest = await runSerializableTransaction(
-      async (transaction) => {
-        const allocation = await transaction.assetAllocation.findUnique({
-          where: { allocationId: request.body.allocationId },
-          select: returnRequestLookupSelect,
-        });
+    const returnRequest = await runSerializableTransaction(async (transaction) => {
+      const allocation = await transaction.assetAllocation.findUnique({
+        where: { allocationId: request.body.allocationId },
+        select: returnRequestLookupSelect,
+      });
 
-        if (
-          !allocation ||
-          allocation.allocatedToUserId !== request.user.userId
-        ) {
-          throw new AllocationNotFoundError();
-        }
+      if (!allocation || allocation.allocatedToUserId !== request.user.userId) {
+        throw new AllocationNotFoundError();
+      }
 
-        if (allocation.status !== "Active" || allocation.returnedAt !== null) {
-          throw new AllocationNotActiveError();
-        }
+      if (allocation.status !== "Active" || allocation.returnedAt !== null) {
+        throw new AllocationNotActiveError();
+      }
 
-        const transition = await transaction.assetAllocation.updateMany({
-          where: {
-            allocationId: request.body.allocationId,
-            allocatedToUserId: request.user.userId,
-            status: "Active",
-            returnedAt: null,
+      const transition = await transaction.assetAllocation.updateMany({
+        where: {
+          allocationId: request.body.allocationId,
+          allocatedToUserId: request.user.userId,
+          status: "Active",
+          returnedAt: null,
+        },
+        data: { status: "ReturnRequested" },
+      });
+
+      if (transition.count !== 1) {
+        throw new AllocationNotActiveError();
+      }
+
+      await logActivity(
+        {
+          actorUserId: request.user.userId,
+          actionType: "ReturnRequested",
+          entityType: "Asset",
+          entityId: allocation.assetId,
+          details: `Requested return of ${allocation.asset.assetTag}.`,
+        },
+        transaction,
+      );
+
+      if (allocation.allocatedById) {
+        await createNotification(
+          {
+            userId: allocation.allocatedById,
+            type: "ReturnRequested",
+            message: `A return was requested for ${allocation.asset.assetTag} (${allocation.asset.name}).`,
+            linkPath: "/allocations",
           },
-          data: { status: "ReturnRequested" },
-        });
+          transaction,
+        );
+      }
 
-        if (transition.count !== 1) {
-          throw new AllocationNotActiveError();
-        }
-
-        return transaction.assetAllocation.findUnique({
-          where: { allocationId: request.body.allocationId },
-          select: publicReturnRequestSelect,
-        });
-      },
-    );
+      return transaction.assetAllocation.findUnique({
+        where: { allocationId: request.body.allocationId },
+        select: publicReturnRequestSelect,
+      });
+    });
 
     return response.status(202).json({ returnRequest });
   } catch (error) {
@@ -115,8 +115,7 @@ async function createReturnRequest(request, response, next) {
 
     if (error instanceof AllocationNotActiveError) {
       return response.status(409).json({
-        message:
-          "Only active, unreturned allocations can have a return requested.",
+        message: "Only active, unreturned allocations can have a return requested.",
       });
     }
 

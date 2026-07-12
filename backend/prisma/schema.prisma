@@ -13,6 +13,7 @@ model User {
   passwordHash                String               @map("password_hash")
   role                        String
   departmentId                Int?                 @map("department_id")
+  status                      String               @default("Active")
   sessionVersion              Int                  @default(0) @map("session_version")
   createdAt                   DateTime             @default(now()) @map("created_at")
   activityLogs                ActivityLog[]        @relation("ActivityActor")
@@ -25,6 +26,7 @@ model User {
   bookings                    Booking[]            @relation("UserBookings")
   headedDepartments           Department[]         @relation("DepartmentHead")
   approvedMaintenanceRequests MaintenanceRequest[] @relation("MaintenanceApprover")
+  assignedMaintenanceRequests MaintenanceRequest[] @relation("MaintenanceTechnician")
   raisedMaintenanceRequests   MaintenanceRequest[] @relation("MaintenanceRequester")
   notifications               Notification[]       @relation("UserNotifications")
   approvedTransfers           TransferRequest[]    @relation("TransferApprover")
@@ -53,24 +55,31 @@ model PasswordResetToken {
 model Department {
   departmentId        Int               @id @default(autoincrement()) @map("department_id")
   name                String            @unique
-  description         String?
+  description         String?           @db.Text
   headUserId          Int?              @map("head_user_id")
+  parentDepartmentId  Int?              @map("parent_department_id")
+  status              String            @default("Active")
+  createdAt           DateTime          @default(now()) @map("created_at")
   receivedAllocations AssetAllocation[] @relation("AllocationRecipientDepartment")
   heldAssets          Asset[]           @relation("AssetCurrentHolderDepartment")
   head                User?             @relation("DepartmentHead", fields: [headUserId], references: [userId])
+  parent              Department?       @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [departmentId])
+  children            Department[]      @relation("DepartmentHierarchy")
   outgoingTransfers   TransferRequest[] @relation("TransferFromDepartment")
   incomingTransfers   TransferRequest[] @relation("TransferToDepartment")
   members             User[]            @relation("DepartmentMembers")
 
   @@index([headUserId])
+  @@index([parentDepartmentId])
   @@map("departments")
 }
 
 model AssetCategory {
-  categoryId  Int     @id @default(autoincrement()) @map("category_id")
-  name        String  @unique
-  description String?
-  assets      Asset[] @relation("CategoryAssets")
+  categoryId   Int     @id @default(autoincrement()) @map("category_id")
+  name         String  @unique
+  description  String? @db.Text
+  customFields Json?   @map("custom_fields")
+  assets       Asset[] @relation("CategoryAssets")
 
   @@map("asset_categories")
 }
@@ -79,8 +88,15 @@ model Asset {
   assetId                   Int                  @id @default(autoincrement()) @map("asset_id")
   assetTag                  String               @unique @map("asset_tag")
   name                      String
+  serialNumber              String?              @map("serial_number")
   categoryId                Int                  @map("category_id")
   status                    String
+  condition                 String?
+  location                  String?
+  acquisitionDate           DateTime?            @map("acquisition_date")
+  acquisitionCost           Decimal?             @map("acquisition_cost") @db.Decimal(12, 2)
+  photoUrl                  String?              @map("photo_url") @db.Text
+  customValues              Json?                @map("custom_values")
   isSharedResource          Boolean              @default(false) @map("is_shared_resource")
   currentHolderUserId       Int?                 @map("current_holder_user_id")
   currentHolderDepartmentId Int?                 @map("current_holder_department_id")
@@ -111,7 +127,10 @@ model AssetAllocation {
   allocatedToDepartmentId Int?        @map("allocated_to_department_id")
   allocatedById           Int         @map("allocated_by")
   allocatedAt             DateTime    @default(now()) @map("allocated_at")
+  expectedReturnDate      DateTime?   @map("expected_return_date")
   returnedAt              DateTime?   @map("returned_at")
+  checkInNotes            String?     @map("check_in_notes") @db.Text
+  returnCondition         String?     @map("return_condition")
   status                  String
   allocatedBy             User        @relation("AllocationAllocator", fields: [allocatedById], references: [userId])
   allocatedToDepartment   Department? @relation("AllocationRecipientDepartment", fields: [allocatedToDepartmentId], references: [departmentId])
@@ -134,6 +153,7 @@ model TransferRequest {
   toDepartmentId    Int?        @map("to_department_id")
   requestedById     Int         @map("requested_by")
   approvedById      Int?        @map("approved_by")
+  reason            String?     @db.Text
   status            String
   requestedAt       DateTime    @default(now()) @map("requested_at")
   approvedAt        DateTime?   @map("approved_at")
@@ -159,6 +179,7 @@ model Booking {
   bookingId Int      @id @default(autoincrement()) @map("booking_id")
   assetId   Int      @map("asset_id")
   userId    Int      @map("user_id")
+  purpose   String?
   startTime DateTime @map("start_time")
   endTime   DateTime @map("end_time")
   status    String
@@ -176,27 +197,37 @@ model MaintenanceRequest {
   assetId              Int       @map("asset_id")
   raisedByUserId       Int       @map("raised_by_user_id")
   approvedByUserId     Int?      @map("approved_by_user_id")
+  technicianUserId     Int?      @map("technician_user_id")
+  description          String?   @db.Text
+  priority             String    @default("Medium")
+  photoUrl             String?   @map("photo_url") @db.Text
+  resolutionNotes      String?   @map("resolution_notes") @db.Text
   status               String
   raisedAt             DateTime  @default(now()) @map("raised_at")
   approvedAt           DateTime? @map("approved_at")
   workStartedAt        DateTime? @map("work_started_at")
   workCompletedAt      DateTime? @map("work_completed_at")
   approvedBy           User?     @relation("MaintenanceApprover", fields: [approvedByUserId], references: [userId])
+  technician           User?     @relation("MaintenanceTechnician", fields: [technicianUserId], references: [userId])
   asset                Asset     @relation("AssetMaintenanceRequests", fields: [assetId], references: [assetId])
   raisedBy             User      @relation("MaintenanceRequester", fields: [raisedByUserId], references: [userId])
 
   @@index([assetId, status])
   @@index([raisedByUserId])
   @@index([approvedByUserId])
+  @@index([technicianUserId])
   @@map("maintenance_requests")
 }
 
 model AuditCycle {
   auditCycleId       Int                 @id @default(autoincrement()) @map("audit_cycle_id")
   name               String
+  scopeDepartmentId  Int?                @map("scope_department_id")
+  scopeLocation      String?             @map("scope_location")
   startDate          DateTime            @map("start_date") @db.Date
   endDate            DateTime            @map("end_date") @db.Date
   status             String
+  createdAt          DateTime            @default(now()) @map("created_at")
   verifications      AssetVerification[] @relation("CycleVerifications")
   assignments        AuditAssignment[]   @relation("CycleAssignments")
   discrepancyReports DiscrepancyReport[] @relation("CycleDiscrepancyReports")
@@ -225,7 +256,7 @@ model AssetVerification {
   assetId        Int        @map("asset_id")
   auditorUserId  Int        @map("auditor_user_id")
   verifiedStatus String     @map("verified_status")
-  remarks        String?
+  remarks        String?    @db.Text
   verifiedAt     DateTime   @default(now()) @map("verified_at")
   asset          Asset      @relation("AssetVerifications", fields: [assetId], references: [assetId])
   auditCycle     AuditCycle @relation("CycleVerifications", fields: [auditCycleId], references: [auditCycleId])
@@ -240,7 +271,8 @@ model AssetVerification {
 model DiscrepancyReport {
   reportId     Int        @id @default(autoincrement()) @map("report_id")
   auditCycleId Int        @map("audit_cycle_id")
-  summary      String
+  summary      String     @db.Text
+  details      Json?
   status       String
   generatedAt  DateTime   @default(now()) @map("generated_at")
   auditCycle   AuditCycle @relation("CycleDiscrepancyReports", fields: [auditCycleId], references: [auditCycleId])
@@ -253,7 +285,8 @@ model Notification {
   notificationId Int      @id @default(autoincrement()) @map("notification_id")
   userId         Int      @map("user_id")
   type           String
-  message        String
+  message        String   @db.Text
+  linkPath       String?  @map("link_path")
   readStatus     Boolean  @default(false) @map("read_status")
   createdAt      DateTime @default(now()) @map("created_at")
   user           User     @relation("UserNotifications", fields: [userId], references: [userId])
@@ -268,7 +301,7 @@ model ActivityLog {
   actionType  String   @map("action_type")
   entityType  String   @map("entity_type")
   entityId    Int      @map("entity_id")
-  details     String?
+  details     String?  @db.Text
   timestamp   DateTime @default(now())
   actor       User     @relation("ActivityActor", fields: [actorUserId], references: [userId])
 

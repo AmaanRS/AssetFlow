@@ -1,9 +1,17 @@
 import validator from "validator";
 import { prisma } from "../database/prisma.js";
+import { logActivity } from "../services/activity-log.js";
+import { createNotification } from "../services/notifications.js";
+import { toPositiveInteger } from "../utils/validation.js";
 
 const mysqlSignedIntMaximum = 2147483647;
 const terminalBookingStatuses = ["Completed", "Cancelled"];
-const openMaintenanceStatuses = ["Pending", "Approved", "InProgress"];
+const openMaintenanceStatuses = [
+  "Pending",
+  "Approved",
+  "TechnicianAssigned",
+  "InProgress",
+];
 const transactionRetryLimit = 3;
 
 const publicBookingSelect = {
@@ -211,4 +219,130 @@ async function createBooking(request, response, next) {
   }
 }
 
-export { createBooking };
+const bookingListSelect = {
+  bookingId: true,
+  assetId: true,
+  userId: true,
+  purpose: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  createdAt: true,
+  asset: { select: { assetId: true, assetTag: true, name: true } },
+  user: { select: { userId: true, name: true } },
+};
+
+class BookingNotFoundError extends Error {}
+class BookingNotCancellableError extends Error {}
+
+/** Derives a human-friendly booking status from stored status + times. */
+function withDisplayStatus(booking, now) {
+  let displayStatus = booking.status;
+  if (booking.status === "Active") {
+    if (now < new Date(booking.startTime)) displayStatus = "Upcoming";
+    else if (now > new Date(booking.endTime)) displayStatus = "Completed";
+    else displayStatus = "Ongoing";
+  }
+  return { ...booking, displayStatus };
+}
+
+async function listBookings(request, response, next) {
+  const where = {};
+  const assetId = toPositiveInteger(request.query.assetId);
+  if (assetId) where.assetId = assetId;
+
+  // Employees see their own bookings; managers/heads/admins see all.
+  if (request.user.role === "Employee") {
+    where.userId = request.user.userId;
+  }
+
+  try {
+    const bookings = await prisma.booking.findMany({
+      where,
+      select: bookingListSelect,
+      orderBy: { startTime: "desc" },
+    });
+    const now = new Date();
+    return response
+      .status(200)
+      .json({ bookings: bookings.map((booking) => withDisplayStatus(booking, now)) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function cancelBooking(request, response, next) {
+  const bookingId = toPositiveInteger(request.params.bookingId);
+  if (!bookingId) {
+    return response.status(400).json({
+      message: "Invalid request data.",
+      errors: { bookingId: "Booking ID must be a positive integer." },
+    });
+  }
+
+  const canManage = ["Admin", "AssetManager", "DepartmentHead"].includes(request.user.role);
+
+  try {
+    const result = await prisma.$transaction(async (transaction) => {
+      const booking = await transaction.booking.findUnique({
+        where: { bookingId },
+        select: {
+          bookingId: true,
+          userId: true,
+          status: true,
+          asset: { select: { assetTag: true, name: true } },
+        },
+      });
+
+      if (!booking) throw new BookingNotFoundError();
+      if (booking.userId !== request.user.userId && !canManage) {
+        throw new BookingNotCancellableError();
+      }
+      if (booking.status !== "Active") throw new BookingNotCancellableError();
+
+      const updated = await transaction.booking.update({
+        where: { bookingId },
+        data: { status: "Cancelled" },
+        select: bookingListSelect,
+      });
+
+      await logActivity(
+        {
+          actorUserId: request.user.userId,
+          actionType: "BookingCancelled",
+          entityType: "Booking",
+          entityId: bookingId,
+          details: `Cancelled booking for ${booking.asset.assetTag}.`,
+        },
+        transaction,
+      );
+
+      if (booking.userId !== request.user.userId) {
+        await createNotification(
+          {
+            userId: booking.userId,
+            type: "BookingCancelled",
+            message: `Your booking of ${booking.asset.assetTag} (${booking.asset.name}) was cancelled.`,
+            linkPath: "/bookings",
+          },
+          transaction,
+        );
+      }
+
+      return updated;
+    });
+
+    const now = new Date();
+    return response.status(200).json({ booking: withDisplayStatus(result, now) });
+  } catch (error) {
+    if (error instanceof BookingNotFoundError) {
+      return response.status(404).json({ message: "Booking not found." });
+    }
+    if (error instanceof BookingNotCancellableError) {
+      return response.status(409).json({ message: "This booking cannot be cancelled." });
+    }
+    return next(error);
+  }
+}
+
+export { cancelBooking, createBooking, listBookings };

@@ -8,6 +8,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node main.js",
+    "dev": "node --watch main.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "db:sql": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script -o prisma/db.sql",
+    "seed": "node prisma/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

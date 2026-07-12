@@ -1,0 +1,23 @@
+.notifications-page { display: grid; gap: 1.35rem; max-width: 52rem; }
+.notifications-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; }
+.notifications-heading h1 { margin: 0; color: #172b26; font-family: Manrope, sans-serif; font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -0.04em; }
+.notifications-heading > div > p:last-child { margin: 0.4rem 0 0; color: #7a8985; font-size: 0.82rem; }
+
+.notifications-card { overflow: hidden; border: 1px solid #e1e8e5; border-radius: 1rem; background: #fff; box-shadow: 0 7px 24px rgba(30, 65, 56, 0.035); }
+.notifications-loading { padding: 3rem; text-align: center; }
+
+.notification-item { display: flex; width: 100%; gap: 0.85rem; padding: 0.95rem 1.2rem; border: none; border-bottom: 1px solid #eef2f0; background: #fff; text-align: left; cursor: pointer; transition: background 0.15s ease; }
+.notification-item:hover { background: #f7faf9; }
+.notification-item.is-unread { background: #f2f9f6; }
+.notification-item.is-unread:hover { background: #ebf5f0; }
+.notification-marker { width: 8px; height: 8px; margin-top: 0.45rem; border-radius: 50%; background: transparent; flex: 0 0 auto; }
+.notification-item.is-unread .notification-marker { background: #238b79; }
+.notification-body { flex: 1; min-width: 0; }
+.notification-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.notification-time { color: #9aa6a2; font-size: 0.68rem; }
+.notification-body p { margin: 0.4rem 0 0; color: #3c4d48; font-size: 0.84rem; line-height: 1.5; }
+
+.notifications-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 16rem; padding: 2rem; text-align: center; }
+.notifications-empty span { display: grid; width: 4rem; height: 4rem; place-items: center; border-radius: 1.15rem; color: #238b79; background: #e7f5f0; }
+.notifications-empty h3 { margin: 1rem 0 0; color: #2c413b; font-family: Manrope, sans-serif; }
+.notifications-empty p { margin: 0.4rem 0 0; color: #7c8a86; font-size: 0.82rem; }

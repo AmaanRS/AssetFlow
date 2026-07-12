@@ -1,0 +1,29 @@
+.audit-page { display: grid; gap: 1.35rem; }
+.audit-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; }
+.audit-heading h1 { margin: 0; color: #172b26; font-family: Manrope, sans-serif; font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -0.04em; }
+.audit-heading > div > p:last-child { margin: 0.4rem 0 0; color: #7a8985; font-size: 0.82rem; }
+.audit-loading { display: grid; place-items: center; min-height: 12rem; }
+
+.audit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; }
+.audit-card { display: grid; gap: 0.5rem; padding: 1.2rem; border: 1px solid #e2e9e6; border-radius: 1rem; background: #fff; text-align: left; cursor: pointer; box-shadow: 0 7px 24px rgba(30, 65, 56, 0.035); transition: border-color 0.15s ease; }
+.audit-card:hover { border-color: #bfe0d6; }
+.audit-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.audit-card-top strong { color: #1f322d; font-family: Manrope, sans-serif; font-size: 1rem; }
+.audit-card-scope { margin: 0; color: #7c8a86; font-size: 0.76rem; }
+.audit-card-meta { display: grid; gap: 0.2rem; color: #909c98; font-size: 0.7rem; }
+
+.audit-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 16rem; padding: 2rem; text-align: center; border: 1px solid #e2e9e6; border-radius: 1rem; background: #fff; }
+.audit-empty span { display: grid; width: 4rem; height: 4rem; place-items: center; border-radius: 1.15rem; color: #238b79; background: #e7f5f0; }
+.audit-empty h3 { margin: 1rem 0 0; color: #2c413b; font-family: Manrope, sans-serif; }
+.audit-empty p { margin: 0.4rem 0 0; color: #7c8a86; font-size: 0.82rem; }
+
+.audit-drawer-meta { color: #7c8a86; font-size: 0.78rem; }
+.audit-section-title { margin: 0 0 0.6rem; color: #2d423c; font-family: Manrope, sans-serif; font-size: 0.9rem; }
+.audit-muted { color: #9aa6a2; font-size: 0.78rem; }
+.audit-asset-list { display: grid; gap: 0.5rem; max-height: 24rem; overflow-y: auto; }
+.audit-asset-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid #e8eeeb; border-radius: 0.6rem; background: #fbfcfc; flex-wrap: wrap; }
+.audit-asset-identity { display: flex; flex-direction: column; min-width: 0; }
+.audit-asset-identity strong { color: #334943; font-size: 0.8rem; }
+.audit-asset-identity span { color: #8b9894; font-size: 0.68rem; }
+.audit-report { display: flex; gap: 0.6rem; padding: 0.8rem; border: 1px solid #e8eeeb; border-radius: 0.6rem; background: #fbfcfc; }
+.audit-report p { margin: 0; color: #55645f; font-size: 0.8rem; line-height: 1.5; }

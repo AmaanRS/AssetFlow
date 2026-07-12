@@ -1,0 +1,44 @@
+.workflow-page { display: grid; gap: 1.35rem; max-width: 58rem; }
+.workflow-heading h1 { margin: 0; color: #172b26; font-family: Manrope, sans-serif; font-size: clamp(1.75rem, 3vw, 2.45rem); letter-spacing: -0.04em; line-height: 1.15; }
+.workflow-heading > div > p:last-child { margin: 0.4rem 0 0; color: #7a8985; font-size: 0.82rem; }
+.workflow-create-card { padding: 1.35rem; border: 1px solid #e1e8e5; border-radius: 1rem; background: #fff; box-shadow: 0 7px 24px rgba(30, 65, 56, 0.035); }
+.workflow-card-heading { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.35rem; padding-bottom: 1rem; border-bottom: 1px solid #e7ecea; }
+.workflow-card-heading > span { display: grid; width: 2.7rem; height: 2.7rem; place-items: center; border-radius: 0.75rem; color: #176e5f; background: #e5f3ee; }
+.workflow-card-heading h2 { margin: 0; color: #2d423c; font-family: Manrope, sans-serif; font-size: 1rem; }
+.workflow-card-heading p { margin: 0.2rem 0 0; color: #84918d; font-size: 0.7rem; }
+.workflow-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.workflow-submit { display: flex; justify-content: flex-end; padding-top: 0.4rem; }
+.workflow-result { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid #cfe4dd; border-radius: 0.85rem; background: #f2f9f6; }
+.workflow-result > div { display: flex; min-width: 0; flex-direction: column; }
+.workflow-result span { color: #70817c; font-size: 0.63rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.workflow-result strong { margin-top: 0.2rem; color: #31554b; font-size: 0.8rem; }
+.workflow-result small { margin-top: 0.2rem; color: #758781; font-size: 0.68rem; }
+.workflow-page.wide { max-width: none; }
+.workflow-error { padding: 0.6rem 0.75rem; border: 1px solid #f3c9c4; border-radius: 0.5rem; background: #fdf2f1; color: #b3392f; font-size: 0.76rem; }
+.workflow-modal-note { margin: 0; color: #7c8a86; font-size: 0.78rem; }
+
+.workflow-tabs { overflow: hidden; border: 1px solid #e1e8e5; border-radius: 1rem; background: #fff; box-shadow: 0 7px 24px rgba(30, 65, 56, 0.035); }
+.workflow-tabs .mantine-Tabs-list { padding: 0 1rem; border-bottom: 0; background: #f8faf9; box-shadow: inset 0 -1px 0 #d7e1dd; }
+.workflow-tabs .mantine-Tabs-tab { min-height: 3.4rem; border: 0; border-bottom: 2px solid transparent; font-weight: 700; }
+.workflow-tabs .mantine-Tabs-tab[data-active] { border-bottom-color: #238b79; color: #176e5f; background: #f1f8f5; }
+.workflow-tabs .mantine-Tabs-panel { padding: 0 1.1rem 1.1rem; }
+
+.workflow-list-card { border: 1px solid #e6ece9; border-radius: 0.85rem; overflow: hidden; }
+.workflow-table-heading { display: grid; gap: 1rem; padding: 0.8rem 1.1rem; color: #84918d; background: #fafcfb; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.workflow-columns-maintenance { grid-template-columns: 1.1fr 1.4fr 0.7fr 0.9fr 0.8fr 1.3fr; }
+.workflow-columns-bookings { grid-template-columns: 1.2fr 1.4fr 0.9fr 0.8fr 0.8fr; }
+.workflow-row { display: grid; align-items: center; gap: 1rem; min-height: 3.9rem; padding: 0.65rem 1.1rem; border-top: 1px solid #edf1ef; color: #65746f; font-size: 0.76rem; }
+.workflow-row:hover { background: #f9fbfa; }
+.workflow-identity { display: flex; min-width: 0; flex-direction: column; }
+.workflow-identity strong { color: #334943; font-size: 0.8rem; }
+.workflow-identity span { overflow: hidden; color: #8b9894; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-loading { padding: 3rem; text-align: center; }
+.workflow-empty { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 2.5rem; color: #7c8a86; font-size: 0.82rem; }
+
+@media (max-width: 600px) { .workflow-form-grid { grid-template-columns: 1fr; } .workflow-submit button { width: 100%; } .workflow-result { align-items: flex-start; } }
+@media (max-width: 820px) {
+  .workflow-table-heading { display: none; }
+  .workflow-columns-maintenance, .workflow-columns-bookings { grid-template-columns: 1fr; gap: 0.4rem; }
+  .workflow-row > .workflow-truncate, .workflow-row > :nth-child(4) { display: none; }
+}

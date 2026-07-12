@@ -26,3 +26,39 @@ button,
 input {
   font: inherit;
 }
+
+.app-modal-content {
+  overflow: hidden;
+  border: 1px solid #dfe7e4;
+  border-radius: 1rem;
+}
+
+.app-modal-header {
+  min-height: 4rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #dfe7e4;
+  background: #fbfcfc;
+}
+
+.app-modal-title {
+  color: #263a35;
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+}
+
+.app-modal-body {
+  padding: 1.25rem;
+}
+
+.app-modal-body input::placeholder,
+.app-modal-body textarea::placeholder {
+  font-size: 0.78rem;
+}
+
+.asset-form-actions,
+.setup-form-actions {
+  margin: 0.35rem -1.25rem -1.25rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #dfe7e4;
+  background: #fbfcfc;
+}

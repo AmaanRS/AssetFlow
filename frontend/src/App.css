@@ -235,6 +235,87 @@
   text-align: center;
 }
 
+.password-modal-copy {
+  margin: 0;
+  color: #697773;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.auth-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin: 0.35rem -1.25rem -1.25rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #dfe7e4;
+  background: #fbfcfc;
+}
+
+.reset-page {
+  display: grid;
+  min-height: 100svh;
+  padding: 2rem 1rem;
+  place-items: center;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(35, 139, 121, 0.12), transparent 25rem),
+    #f2f6f4;
+}
+
+.reset-card {
+  width: min(100%, 29rem);
+  padding: clamp(1.5rem, 5vw, 2.4rem);
+  border: 1px solid #dfe7e4;
+  border-radius: 1.2rem;
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(24, 61, 52, 0.09);
+}
+
+.reset-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 2.5rem;
+  color: #123d35;
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+}
+
+.reset-brand span {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  color: #effffb;
+  background: #176e5f;
+}
+
+.reset-card h1 {
+  margin: 0;
+  color: #172b26;
+  font-family: Manrope, sans-serif;
+  font-size: 2rem;
+  letter-spacing: -0.045em;
+}
+
+.reset-copy {
+  margin: 0.65rem 0 1.7rem;
+  color: #697773;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.reset-error {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid #f0cdd2;
+  border-radius: 0.65rem;
+  color: #963c48;
+  background: #fff4f5;
+  font-size: 0.76rem;
+}
+
 @keyframes auth-card-in {
   from {
     opacity: 0;
