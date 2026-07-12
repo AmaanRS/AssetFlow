@@ -15,6 +15,30 @@
     {
       "name": "Authentication",
       "description": "Account creation, authentication, password recovery, and session validation"
+    },
+    {
+      "name": "Users",
+      "description": "Protected user administration endpoints"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Protected organization-wide asset and workflow metrics"
+    },
+    {
+      "name": "Assets",
+      "description": "Asset registration and management"
+    },
+    {
+      "name": "Bookings",
+      "description": "Shared-resource booking operations"
+    },
+    {
+      "name": "Maintenance Requests",
+      "description": "Asset maintenance request operations"
+    },
+    {
+      "name": "Return Requests",
+      "description": "Allocated-asset return request operations"
     }
   ],
   "paths": {
@@ -159,7 +183,7 @@
           "Authentication"
         ],
         "summary": "Request a password reset",
-        "description": "Starts password recovery. For account-enumeration resistance, the response is identical whether or not the email belongs to an account and does not confirm delivery.",
+        "description": "Starts password recovery. For an existing account, the server emails a time-limited reset link through Nodemailer using deployment-configured Gmail SMTP credentials and a Google App Password. Gmail credentials are server-side configuration and are not accepted by this endpoint. Every valid request returns the same `202` response regardless of whether the account exists, SMTP is configured, or delivery succeeds; the response never confirms delivery.",
         "operationId": "forgotPassword",
         "security": [],
         "requestBody": {
@@ -177,7 +201,7 @@
         },
         "responses": {
           "202": {
-            "description": "The password-reset request was accepted. The response does not reveal whether the account exists or whether an email was delivered.",
+            "description": "The password-reset request was accepted. This non-enumerating response does not reveal whether the account exists, Gmail SMTP is configured, or reset instructions were delivered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -304,6 +328,731 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List all users",
+        "description": "Returns every user ordered by `userId` in ascending order. A valid JWT session and the `read:user` permission are required; this permission is assigned to the Admin role. Password hashes, session versions, and password-reset data are never returned.",
+        "operationId": "listUsers",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersResponse"
+                },
+                "example": {
+                  "users": [
+                    {
+                      "userId": 1,
+                      "name": "Aarav Sharma",
+                      "email": "aarav.sharma@example.com",
+                      "role": "Admin",
+                      "departmentId": null,
+                      "createdAt": "2026-07-12T08:15:30.000Z"
+                    },
+                    {
+                      "userId": 2,
+                      "name": "Meera Iyer",
+                      "email": "meera.iyer@example.com",
+                      "role": "Employee",
+                      "departmentId": 1,
+                      "createdAt": "2026-07-12T09:30:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/role": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Promote an Employee",
+        "description": "Promotes an existing Employee to either DepartmentHead or AssetManager. A valid JWT session and the `update:user` permission are required; this permission is assigned to the Admin role. Accounts that no longer have the Employee role cannot be promoted through this endpoint.",
+        "operationId": "promoteUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "ID of the Employee account to promote.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            },
+            "example": 42
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteUserRequest"
+              },
+              "example": {
+                "role": "DepartmentHead"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The Employee was promoted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                },
+                "example": {
+                  "user": {
+                    "userId": 42,
+                    "name": "Aarav Sharma",
+                    "email": "aarav.sharma@example.com",
+                    "role": "DepartmentHead",
+                    "departmentId": null,
+                    "createdAt": "2026-07-12T08:15:30.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The user ID or request body is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalidUserId": {
+                    "summary": "Invalid user ID",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "userId": "User ID must be a positive integer."
+                      }
+                    }
+                  },
+                  "invalidRole": {
+                    "summary": "Invalid promotion role",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "role": "Role must be DepartmentHead or AssetManager."
+                      }
+                    }
+                  },
+                  "unexpectedField": {
+                    "summary": "Unexpected request field",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "request": "Unexpected fields: departmentId."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `update:user` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested user does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "User not found."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested account is not currently an Employee and cannot be promoted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Only Employee accounts can be promoted."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/dashboard/summary": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get the dashboard summary",
+        "description": "Returns organization-wide counts calculated at request time. A valid JWT session and the `read:asset` permission are required. Return metrics use booking end times because asset allocations do not contain a due or expected-return date.",
+        "operationId": "getDashboardSummary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard summary retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummary"
+                },
+                "example": {
+                  "assetsAvailable": 125,
+                  "assetsAllocated": 73,
+                  "maintenanceToday": 4,
+                  "activeBookings": 12,
+                  "pendingTransfers": 6,
+                  "upcomingReturns": 9,
+                  "overdueReturns": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `read:asset` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/assets": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Register an asset",
+        "description": "Registers a new Available asset. A valid JWT session and the `create:asset` permission are required; AssetManager and Admin accounts have this permission. The authenticated user is recorded as the asset registrar. Category lookup, duplicate-tag lookup, and creation run in a serializable transaction with conflict retries, so concurrent attempts using the same asset tag receive the same 409 response.",
+        "operationId": "createAsset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetRequest"
+              },
+              "example": {
+                "assetTag": "LAP-2026-0042",
+                "name": "Engineering Laptop",
+                "categoryId": 3,
+                "isSharedResource": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Asset registered successfully with status `Available`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is invalid or contains unexpected fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "validation": {
+                    "summary": "Invalid asset fields",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "assetTag": "Asset tag is required.",
+                        "name": "Name is required.",
+                        "categoryId": "Category ID must be a positive integer.",
+                        "isSharedResource": "isSharedResource must be a boolean."
+                      }
+                    }
+                  },
+                  "databaseFieldLength": {
+                    "summary": "Value exceeds a database field limit",
+                    "description": "Returned when Prisma reports a P2000 value-too-long error.",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "request": "One or more values exceed the database-supported field length."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `create:asset` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The selected asset category does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Asset category not found."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An asset already uses the supplied asset tag.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "An asset with this asset tag already exists."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/bookings": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Book a shared resource",
+        "description": "Creates an Active booking for an Available shared asset that has no open maintenance request with status Pending, Approved, or InProgress. A valid JWT session and the `book:shared-resource` permission are required. `startTime` and `endTime` must be RFC 3339 timestamps with an explicit timezone, the start must be in the future, and the interval must not overlap a non-Completed, non-Cancelled booking. Booking has no departmentId field, so bookings made by DepartmentHead or Admin accounts are still stored under the authenticated user's userId rather than under a department.",
+        "operationId": "createBooking",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              },
+              "example": {
+                "assetId": 17,
+                "startTime": "2026-07-13T09:00:00+05:30",
+                "endTime": "2026-07-13T11:00:00+05:30"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Shared resource booked successfully with status `Active`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body, asset ID, or booking interval is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalidTimestamps": {
+                    "summary": "Invalid booking timestamps",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "startTime": "startTime must be a valid ISO-8601 date-time with a timezone.",
+                        "endTime": "endTime must be a valid ISO-8601 date-time with a timezone."
+                      }
+                    }
+                  },
+                  "invalidInterval": {
+                    "summary": "Invalid booking interval",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "startTime": "startTime must be in the future.",
+                        "endTime": "endTime must be after startTime."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `book:shared-resource` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested asset does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Asset not found."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset cannot be booked in the requested interval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "notShared": {
+                    "summary": "Asset is not a shared resource",
+                    "value": {
+                      "message": "Only shared resources can be booked."
+                    }
+                  },
+                  "notAvailable": {
+                    "summary": "Shared resource is unavailable",
+                    "value": {
+                      "message": "The shared resource is not available for booking."
+                    }
+                  },
+                  "openMaintenanceRequest": {
+                    "summary": "Shared resource has open maintenance",
+                    "value": {
+                      "message": "The shared resource has an open maintenance request."
+                    }
+                  },
+                  "overlap": {
+                    "summary": "Booking interval overlaps",
+                    "value": {
+                      "message": "The asset is already booked for the requested time."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/maintenance-requests": {
+      "post": {
+        "tags": [
+          "Maintenance Requests"
+        ],
+        "summary": "Raise a maintenance request",
+        "description": "Creates a Pending maintenance request for an existing asset under the authenticated user. A valid JWT session and the `raise:maintenance-request` permission are required. An asset may have at most one open request with status Pending, Approved, or InProgress.",
+        "operationId": "createMaintenanceRequest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMaintenanceRequest"
+              },
+              "example": {
+                "assetId": 17
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Maintenance request created successfully with status `Pending`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is invalid or contains fields other than assetId.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Invalid request data.",
+                  "errors": {
+                    "assetId": "Asset ID must be a positive integer."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `raise:maintenance-request` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested asset does not exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Asset not found."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset already has an open maintenance request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "An open maintenance request already exists for this asset."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/return-requests": {
+      "post": {
+        "tags": [
+          "Return Requests"
+        ],
+        "summary": "Request an allocated asset return",
+        "description": "Requests the return of an Active, unreturned allocation assigned directly to the authenticated user by atomically changing its status to ReturnRequested. A valid JWT session and the `raise:asset-return` permission are required. Personal ownership is enforced for every role: DepartmentHead and Admin users may request returns for their own user allocations but cannot use this endpoint for department allocations. Missing and inaccessible allocation IDs return the same 404 response to prevent allocation probing. There is no separate ReturnRequest model: the updated allocation is the persisted request, so the response has no independent return-request ID or request timestamp.",
+        "operationId": "createReturnRequest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReturnRequest"
+              },
+              "example": {
+                "allocationId": 29
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Return request accepted and persisted as allocation status `ReturnRequested`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is invalid or contains fields other than allocationId.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Invalid request data.",
+                  "errors": {
+                    "allocationId": "Allocation ID must be a positive integer."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The authenticated user does not have the `raise:asset-return` permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "You do not have permission to perform this action."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The allocation does not exist or is not assigned directly to the authenticated user. Both cases intentionally return the same response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Allocation not found."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The allocation is not Active, has already been returned, or already has a return request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Only active, unreturned allocations can have a return requested."
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -502,6 +1251,500 @@
           }
         }
       },
+      "UsersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "users"
+        ],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "PromoteUserRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "DepartmentHead",
+              "AssetManager"
+            ],
+            "description": "The elevated role to assign to the Employee.",
+            "example": "DepartmentHead"
+          }
+        }
+      },
+      "DashboardSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetsAvailable",
+          "assetsAllocated",
+          "maintenanceToday",
+          "activeBookings",
+          "pendingTransfers",
+          "upcomingReturns",
+          "overdueReturns"
+        ],
+        "properties": {
+          "assetsAvailable": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of Asset records whose status is `Available`.",
+            "example": 125
+          },
+          "assetsAllocated": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of Asset records whose status is `Allocated`.",
+            "example": 73
+          },
+          "maintenanceToday": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of MaintenanceRequest records raised from 00:00:00 UTC today, inclusive, until 00:00:00 UTC tomorrow, exclusive.",
+            "example": 4
+          },
+          "activeBookings": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of Booking records with status `Active` whose start time is at or before now and whose end time is after now.",
+            "example": 12
+          },
+          "pendingTransfers": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of TransferRequest records whose status is `Pending`.",
+            "example": 6
+          },
+          "upcomingReturns": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of started Booking records with status `Active` whose end time is at or after now and before seven days from now. This metric uses booking end times because AssetAllocation has no due date.",
+            "example": 9
+          },
+          "overdueReturns": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of started Booking records with status `Active` whose end time is before now. This metric uses booking end times because AssetAllocation has no due date.",
+            "example": 2
+          }
+        }
+      },
+      "CreateAssetRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetTag",
+          "name",
+          "categoryId"
+        ],
+        "properties": {
+          "assetTag": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique, non-blank asset tag. Surrounding whitespace is removed.",
+            "example": "LAP-2026-0042"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Non-blank asset name. Surrounding whitespace is removed.",
+            "example": "Engineering Laptop"
+          },
+          "categoryId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "example": 3
+          },
+          "isSharedResource": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the asset can be booked as a shared resource.",
+            "example": false
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId",
+          "assetTag",
+          "name",
+          "categoryId",
+          "status",
+          "isSharedResource",
+          "currentHolderUserId",
+          "currentHolderDepartmentId",
+          "registeredById",
+          "createdAt"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 17
+          },
+          "assetTag": {
+            "type": "string",
+            "example": "LAP-2026-0042"
+          },
+          "name": {
+            "type": "string",
+            "example": "Engineering Laptop"
+          },
+          "categoryId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 3
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Available"
+            ],
+            "description": "Newly registered assets are always Available.",
+            "example": "Available"
+          },
+          "isSharedResource": {
+            "type": "boolean",
+            "example": false
+          },
+          "currentHolderUserId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 1,
+            "description": "Current individual holder, or null for a newly registered asset.",
+            "example": null
+          },
+          "currentHolderDepartmentId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 1,
+            "description": "Current department holder, or null for a newly registered asset.",
+            "example": null
+          },
+          "registeredById": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Authenticated user who registered the asset.",
+            "example": 8
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-12T10:30:00.000Z"
+          }
+        }
+      },
+      "AssetResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset"
+        ],
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/Asset"
+          }
+        }
+      },
+      "CreateBookingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "example": 17
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Future RFC 3339 timestamp with an explicit UTC offset or Z timezone designator.",
+            "example": "2026-07-13T09:00:00+05:30"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 timestamp with an explicit timezone, strictly after startTime.",
+            "example": "2026-07-13T11:00:00+05:30"
+          }
+        }
+      },
+      "Booking": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bookingId",
+          "assetId",
+          "userId",
+          "startTime",
+          "endTime",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "bookingId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 64
+          },
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 17
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Authenticated user who created the booking. Booking has no departmentId field, including for DepartmentHead and Admin bookings.",
+            "example": 42
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-13T03:30:00.000Z"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-13T05:30:00.000Z"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active"
+            ],
+            "example": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-12T10:35:00.000Z"
+          }
+        }
+      },
+      "BookingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "booking"
+        ],
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/Booking"
+          }
+        }
+      },
+      "CreateMaintenanceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "example": 17
+          }
+        }
+      },
+      "MaintenanceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "maintenanceRequestId",
+          "assetId",
+          "raisedByUserId",
+          "approvedByUserId",
+          "status",
+          "raisedAt",
+          "approvedAt",
+          "workStartedAt",
+          "workCompletedAt"
+        ],
+        "properties": {
+          "maintenanceRequestId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 12
+          },
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 17
+          },
+          "raisedByUserId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Authenticated user who raised the request.",
+            "example": 42
+          },
+          "approvedByUserId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 1,
+            "example": null
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending"
+            ],
+            "example": "Pending"
+          },
+          "raisedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-12T10:40:00.000Z"
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "workStartedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "workCompletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          }
+        }
+      },
+      "MaintenanceRequestResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "maintenanceRequest"
+        ],
+        "properties": {
+          "maintenanceRequest": {
+            "$ref": "#/components/schemas/MaintenanceRequest"
+          }
+        }
+      },
+      "CreateReturnRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allocationId"
+        ],
+        "properties": {
+          "allocationId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "example": 29
+          }
+        }
+      },
+      "ReturnRequestAllocation": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A minimal view of the allocation row that persists the return request. There is no separate ReturnRequest record, request ID, or request timestamp.",
+        "required": [
+          "allocationId",
+          "assetId",
+          "status"
+        ],
+        "properties": {
+          "allocationId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 29
+          },
+          "assetId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 17
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ReturnRequested"
+            ],
+            "description": "The allocation status used to persist the return request.",
+            "example": "ReturnRequested"
+          }
+        }
+      },
+      "ReturnRequestResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "returnRequest"
+        ],
+        "properties": {
+          "returnRequest": {
+            "$ref": "#/components/schemas/ReturnRequestAllocation"
+          }
+        }
+      },
       "MessageResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -605,6 +1848,19 @@
             },
             "example": {
               "message": "Invalid or expired token."
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The authenticated user does not have the `read:user` permission.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "message": "You do not have permission to perform this action."
             }
           }
         }

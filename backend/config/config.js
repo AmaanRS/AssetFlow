@@ -41,9 +41,9 @@ const config = convict({
     env: "PASSWORD_RESET_URL",
   },
   SMTP_HOST: {
-    doc: "The SMTP server host.",
+    doc: "The Gmail SMTP server host.",
     format: String,
-    default: "",
+    default: "smtp.gmail.com",
     env: "SMTP_HOST",
   },
   SMTP_PORT: {
@@ -59,13 +59,13 @@ const config = convict({
     env: "SMTP_SECURE",
   },
   SMTP_USER: {
-    doc: "The SMTP username.",
+    doc: "The Google account email address.",
     format: String,
     default: "",
     env: "SMTP_USER",
   },
   SMTP_PASSWORD: {
-    doc: "The SMTP password.",
+    doc: "The Google App Password used for Gmail SMTP.",
     format: String,
     default: "",
     env: "SMTP_PASSWORD",
