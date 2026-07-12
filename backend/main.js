@@ -5,7 +5,7 @@ const app = express();
 
 const BACKEND_EXPRESS_SERVER_PORT = config.get("BACKEND_EXPRESS_SERVER_PORT");
 
-app.use()
+app.use();
 
 app.listen(BACKEND_EXPRESS_SERVER_PORT, () => {
   console.log(

@@ -8,7 +8,12 @@ const config = convict({
     format: "port",
     default: 8080,
     env: "BACKEND_EXPRESS_SERVER_PORT",
-    arg: "port",
+  },
+  DATABASE_URL: {
+    doc: "The MySQL database URL.",
+    format: String,
+    default: null,
+    env: "DATABASE_URL",
   },
 });
 

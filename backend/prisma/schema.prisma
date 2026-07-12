@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  userId                      Int                  @id @default(autoincrement()) @map("user_id")
+  name                        String
+  email                       String               @unique
+  role                        String
+  departmentId                Int                  @map("department_id")
+  createdAt                   DateTime             @default(now()) @map("created_at")
+  activityLogs                ActivityLog[]        @relation("ActivityActor")
+  createdAllocations          AssetAllocation[]    @relation("AllocationAllocator")
+  receivedAllocations         AssetAllocation[]    @relation("AllocationRecipientUser")
+  assetVerifications          AssetVerification[]  @relation("VerificationAuditor")
+  heldAssets                  Asset[]              @relation("AssetCurrentHolderUser")
+  registeredAssets            Asset[]              @relation("AssetRegistrar")
+  auditAssignments            AuditAssignment[]    @relation("AuditAssignee")
+  bookings                    Booking[]            @relation("UserBookings")
+  headedDepartments           Department[]         @relation("DepartmentHead")
+  approvedMaintenanceRequests MaintenanceRequest[] @relation("MaintenanceApprover")
+  raisedMaintenanceRequests   MaintenanceRequest[] @relation("MaintenanceRequester")
+  notifications               Notification[]       @relation("UserNotifications")
+  approvedTransfers           TransferRequest[]    @relation("TransferApprover")
+  outgoingTransfers           TransferRequest[]    @relation("TransferFromUser")
+  requestedTransfers          TransferRequest[]    @relation("TransferRequester")
+  incomingTransfers           TransferRequest[]    @relation("TransferToUser")
+  department                  Department           @relation("DepartmentMembers", fields: [departmentId], references: [departmentId])
+
+  @@index([departmentId])
+  @@map("users")
+}
+
+model Department {
+  departmentId        Int               @id @default(autoincrement()) @map("department_id")
+  name                String            @unique
+  description         String?
+  headUserId          Int?              @map("head_user_id")
+  receivedAllocations AssetAllocation[] @relation("AllocationRecipientDepartment")
+  heldAssets          Asset[]           @relation("AssetCurrentHolderDepartment")
+  head                User?             @relation("DepartmentHead", fields: [headUserId], references: [userId])
+  outgoingTransfers   TransferRequest[] @relation("TransferFromDepartment")
+  incomingTransfers   TransferRequest[] @relation("TransferToDepartment")
+  members             User[]            @relation("DepartmentMembers")
+
+  @@index([headUserId])
+  @@map("departments")
+}
+
+model AssetCategory {
+  categoryId  Int     @id @default(autoincrement()) @map("category_id")
+  name        String  @unique
+  description String?
+  assets      Asset[] @relation("CategoryAssets")
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  assetId                   Int                  @id @default(autoincrement()) @map("asset_id")
+  assetTag                  String               @unique @map("asset_tag")
+  name                      String
+  categoryId                Int                  @map("category_id")
+  status                    String
+  isSharedResource          Boolean              @default(false) @map("is_shared_resource")
+  currentHolderUserId       Int?                 @map("current_holder_user_id")
+  currentHolderDepartmentId Int?                 @map("current_holder_department_id")
+  registeredById            Int                  @map("registered_by")
+  createdAt                 DateTime             @default(now()) @map("created_at")
+  allocations               AssetAllocation[]    @relation("AssetAllocations")
+  verifications             AssetVerification[]  @relation("AssetVerifications")
+  category                  AssetCategory        @relation("CategoryAssets", fields: [categoryId], references: [categoryId])
+  currentHolderDepartment   Department?          @relation("AssetCurrentHolderDepartment", fields: [currentHolderDepartmentId], references: [departmentId])
+  currentHolderUser         User?                @relation("AssetCurrentHolderUser", fields: [currentHolderUserId], references: [userId])
+  registeredBy              User                 @relation("AssetRegistrar", fields: [registeredById], references: [userId])
+  bookings                  Booking[]            @relation("AssetBookings")
+  maintenanceRequests       MaintenanceRequest[] @relation("AssetMaintenanceRequests")
+  transferRequests          TransferRequest[]    @relation("AssetTransfers")
+
+  @@index([categoryId])
+  @@index([currentHolderUserId])
+  @@index([currentHolderDepartmentId])
+  @@index([registeredById])
+  @@index([status])
+  @@map("assets")
+}
+
+model AssetAllocation {
+  allocationId            Int         @id @default(autoincrement()) @map("allocation_id")
+  assetId                 Int         @map("asset_id")
+  allocatedToUserId       Int?        @map("allocated_to_user_id")
+  allocatedToDepartmentId Int?        @map("allocated_to_department_id")
+  allocatedById           Int         @map("allocated_by")
+  allocatedAt             DateTime    @default(now()) @map("allocated_at")
+  returnedAt              DateTime?   @map("returned_at")
+  status                  String
+  allocatedBy             User        @relation("AllocationAllocator", fields: [allocatedById], references: [userId])
+  allocatedToDepartment   Department? @relation("AllocationRecipientDepartment", fields: [allocatedToDepartmentId], references: [departmentId])
+  allocatedToUser         User?       @relation("AllocationRecipientUser", fields: [allocatedToUserId], references: [userId])
+  asset                   Asset       @relation("AssetAllocations", fields: [assetId], references: [assetId])
+
+  @@index([assetId, status])
+  @@index([allocatedToUserId])
+  @@index([allocatedToDepartmentId])
+  @@index([allocatedById])
+  @@map("asset_allocations")
+}
+
+model TransferRequest {
+  transferRequestId Int         @id @default(autoincrement()) @map("transfer_request_id")
+  assetId           Int         @map("asset_id")
+  fromUserId        Int?        @map("from_user_id")
+  fromDepartmentId  Int?        @map("from_department_id")
+  toUserId          Int?        @map("to_user_id")
+  toDepartmentId    Int?        @map("to_department_id")
+  requestedById     Int         @map("requested_by")
+  approvedById      Int?        @map("approved_by")
+  status            String
+  requestedAt       DateTime    @default(now()) @map("requested_at")
+  approvedAt        DateTime?   @map("approved_at")
+  approvedBy        User?       @relation("TransferApprover", fields: [approvedById], references: [userId])
+  asset             Asset       @relation("AssetTransfers", fields: [assetId], references: [assetId])
+  fromDepartment    Department? @relation("TransferFromDepartment", fields: [fromDepartmentId], references: [departmentId])
+  fromUser          User?       @relation("TransferFromUser", fields: [fromUserId], references: [userId])
+  requestedBy       User        @relation("TransferRequester", fields: [requestedById], references: [userId])
+  toDepartment      Department? @relation("TransferToDepartment", fields: [toDepartmentId], references: [departmentId])
+  toUser            User?       @relation("TransferToUser", fields: [toUserId], references: [userId])
+
+  @@index([assetId, status])
+  @@index([fromUserId])
+  @@index([fromDepartmentId])
+  @@index([toUserId])
+  @@index([toDepartmentId])
+  @@index([requestedById])
+  @@index([approvedById])
+  @@map("transfer_requests")
+}
+
+model Booking {
+  bookingId Int      @id @default(autoincrement()) @map("booking_id")
+  assetId   Int      @map("asset_id")
+  userId    Int      @map("user_id")
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+  asset     Asset    @relation("AssetBookings", fields: [assetId], references: [assetId])
+  user      User     @relation("UserBookings", fields: [userId], references: [userId])
+
+  @@index([assetId, status, startTime, endTime])
+  @@index([userId])
+  @@map("bookings")
+}
+
+model MaintenanceRequest {
+  maintenanceRequestId Int       @id @default(autoincrement()) @map("maintenance_request_id")
+  assetId              Int       @map("asset_id")
+  raisedByUserId       Int       @map("raised_by_user_id")
+  approvedByUserId     Int?      @map("approved_by_user_id")
+  status               String
+  raisedAt             DateTime  @default(now()) @map("raised_at")
+  approvedAt           DateTime? @map("approved_at")
+  workStartedAt        DateTime? @map("work_started_at")
+  workCompletedAt      DateTime? @map("work_completed_at")
+  approvedBy           User?     @relation("MaintenanceApprover", fields: [approvedByUserId], references: [userId])
+  asset                Asset     @relation("AssetMaintenanceRequests", fields: [assetId], references: [assetId])
+  raisedBy             User      @relation("MaintenanceRequester", fields: [raisedByUserId], references: [userId])
+
+  @@index([assetId, status])
+  @@index([raisedByUserId])
+  @@index([approvedByUserId])
+  @@map("maintenance_requests")
+}
+
+model AuditCycle {
+  auditCycleId       Int                 @id @default(autoincrement()) @map("audit_cycle_id")
+  name               String
+  startDate          DateTime            @map("start_date") @db.Date
+  endDate            DateTime            @map("end_date") @db.Date
+  status             String
+  verifications      AssetVerification[] @relation("CycleVerifications")
+  assignments        AuditAssignment[]   @relation("CycleAssignments")
+  discrepancyReports DiscrepancyReport[] @relation("CycleDiscrepancyReports")
+
+  @@index([status, startDate, endDate])
+  @@map("audit_cycles")
+}
+
+model AuditAssignment {
+  auditAssignmentId Int        @id @default(autoincrement()) @map("audit_assignment_id")
+  auditCycleId      Int        @map("audit_cycle_id")
+  auditorUserId     Int        @map("auditor_user_id")
+  assignedAt        DateTime   @default(now()) @map("assigned_at")
+  status            String
+  auditCycle        AuditCycle @relation("CycleAssignments", fields: [auditCycleId], references: [auditCycleId])
+  auditor           User       @relation("AuditAssignee", fields: [auditorUserId], references: [userId])
+
+  @@unique([auditCycleId, auditorUserId])
+  @@index([auditorUserId, status])
+  @@map("audit_assignments")
+}
+
+model AssetVerification {
+  verificationId Int        @id @default(autoincrement()) @map("verification_id")
+  auditCycleId   Int        @map("audit_cycle_id")
+  assetId        Int        @map("asset_id")
+  auditorUserId  Int        @map("auditor_user_id")
+  verifiedStatus String     @map("verified_status")
+  remarks        String?
+  verifiedAt     DateTime   @default(now()) @map("verified_at")
+  asset          Asset      @relation("AssetVerifications", fields: [assetId], references: [assetId])
+  auditCycle     AuditCycle @relation("CycleVerifications", fields: [auditCycleId], references: [auditCycleId])
+  auditor        User       @relation("VerificationAuditor", fields: [auditorUserId], references: [userId])
+
+  @@unique([auditCycleId, assetId])
+  @@index([assetId])
+  @@index([auditorUserId])
+  @@map("asset_verifications")
+}
+
+model DiscrepancyReport {
+  reportId     Int        @id @default(autoincrement()) @map("report_id")
+  auditCycleId Int        @map("audit_cycle_id")
+  summary      String
+  status       String
+  generatedAt  DateTime   @default(now()) @map("generated_at")
+  auditCycle   AuditCycle @relation("CycleDiscrepancyReports", fields: [auditCycleId], references: [auditCycleId])
+
+  @@index([auditCycleId, status])
+  @@map("discrepancy_reports")
+}
+
+model Notification {
+  notificationId Int      @id @default(autoincrement()) @map("notification_id")
+  userId         Int      @map("user_id")
+  type           String
+  message        String
+  readStatus     Boolean  @default(false) @map("read_status")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation("UserNotifications", fields: [userId], references: [userId])
+
+  @@index([userId, readStatus, createdAt])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  logId       Int      @id @default(autoincrement()) @map("log_id")
+  actorUserId Int      @map("actor_user_id")
+  actionType  String   @map("action_type")
+  entityType  String   @map("entity_type")
+  entityId    Int      @map("entity_id")
+  details     String?
+  timestamp   DateTime @default(now())
+  actor       User     @relation("ActivityActor", fields: [actorUserId], references: [userId])
+
+  @@index([actorUserId, timestamp])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
