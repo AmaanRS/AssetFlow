@@ -68,10 +68,10 @@ export function DashboardPage() {
         <section className="overdue-banner">
           <div className="overdue-icon"><IconAlertTriangle size={21} /></div>
           <div>
-            <strong>{summaryQuery.data.overdueReturns} overdue booking {summaryQuery.data.overdueReturns === 1 ? 'return' : 'returns'}</strong>
-            <span>These active bookings ended before the current time.</span>
+            <strong>{summaryQuery.data.overdueReturns} overdue {summaryQuery.data.overdueReturns === 1 ? 'return' : 'returns'}</strong>
+            <span>These allocations are past their expected return date.</span>
           </div>
-          <Button variant="subtle" color="red" rightSection={<IconArrowRight size={16} />} onClick={() => navigate('/bookings')}>Review bookings</Button>
+          <Button variant="subtle" color="red" rightSection={<IconArrowRight size={16} />} onClick={() => navigate('/allocations')}>Review allocations</Button>
         </section>
       )}
 

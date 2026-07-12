@@ -22,10 +22,7 @@ function createTimeBoundaries(now) {
 async function getDashboardSummary(_request, response, next) {
   const { now, todayStart, tomorrowStart, upcomingReturnEnd } =
     createTimeBoundaries(new Date());
-  const activeStartedBooking = {
-    status: "Active",
-    startTime: { lte: now },
-  };
+  const activeAllocationStatuses = ["Active", "ReturnRequested"];
 
   try {
     const [
@@ -47,26 +44,28 @@ async function getDashboardSummary(_request, response, next) {
           },
         },
       }),
+      // Active bookings = currently ongoing (started, not yet ended).
       prisma.booking.count({
         where: {
-          ...activeStartedBooking,
+          status: "Active",
+          startTime: { lte: now },
           endTime: { gt: now },
         },
       }),
-      prisma.transferRequest.count({ where: { status: "Pending" } }),
-      prisma.booking.count({
+      // Pending transfers awaiting approval.
+      prisma.transferRequest.count({ where: { status: "Requested" } }),
+      // Upcoming returns = active allocations due within the next 7 days.
+      prisma.assetAllocation.count({
         where: {
-          ...activeStartedBooking,
-          endTime: {
-            gte: now,
-            lt: upcomingReturnEnd,
-          },
+          status: { in: activeAllocationStatuses },
+          expectedReturnDate: { gte: now, lt: upcomingReturnEnd },
         },
       }),
-      prisma.booking.count({
+      // Overdue returns = active allocations past their expected return date.
+      prisma.assetAllocation.count({
         where: {
-          ...activeStartedBooking,
-          endTime: { lt: now },
+          status: { in: activeAllocationStatuses },
+          expectedReturnDate: { lt: now },
         },
       }),
     ]);

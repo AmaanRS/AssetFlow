@@ -66,14 +66,28 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
+  gap: 0.28rem;
+  align-items: flex-start;
 }
 
 .organization-copy strong {
   overflow: hidden;
+  max-width: 100%;
   color: #253a35;
   font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Role-tinted accent on the sidebar identity chip */
+.organization-chip.role-Admin { border-color: #b6ded4; background: #f1f9f6; }
+.organization-chip.role-AssetManager { border-color: #bcd4ec; background: #eff5fb; }
+.organization-chip.role-DepartmentHead { border-color: #ddc6ec; background: #f7f1fb; }
+.organization-chip.role-Employee { border-color: #e3eae7; background: #f8faf9; }
+
+.header-role-badge {
+  text-transform: none;
+  font-weight: 700;
 }
 
 .organization-copy span {

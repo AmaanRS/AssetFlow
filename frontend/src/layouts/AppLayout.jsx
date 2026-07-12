@@ -21,11 +21,19 @@ import { useAuth } from '../auth/useAuth.js'
 import { NAV_ITEMS } from '../config/app-ui.js'
 import './AppLayout.css'
 
+const ROLE_META = {
+  Admin: { label: 'Admin', color: 'teal' },
+  AssetManager: { label: 'Asset Manager', color: 'blue' },
+  DepartmentHead: { label: 'Department Head', color: 'grape' },
+  Employee: { label: 'Employee', color: 'gray' },
+}
+
 export function AppLayout() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const roleMeta = ROLE_META[user.role] || ROLE_META.Employee
   const notificationsQuery = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => (await apiClient.get('/api/notifications?unread=true')).data,
@@ -58,12 +66,13 @@ export function AppLayout() {
           </ActionIcon>
         </div>
 
-        <div className="organization-chip">
-          <Avatar size={34} radius="md" color="teal">
+        <div className={`organization-chip role-${user.role}`}>
+          <Avatar size={34} radius="md" color={roleMeta.color}>
             {initials}
           </Avatar>
           <div className="organization-copy">
-            <strong>AssetFlow Workspace</strong>
+            <strong>{user.name}</strong>
+            <Badge size="xs" variant="light" color={roleMeta.color} radius="sm">{roleMeta.label}</Badge>
           </div>
         </div>
 
@@ -107,10 +116,13 @@ export function AppLayout() {
           </div>
 
           <div className="header-actions">
+            <Badge variant="light" color={roleMeta.color} size="lg" radius="sm" className="header-role-badge">
+              {roleMeta.label}
+            </Badge>
             <Menu position="bottom-end" shadow="md" width={210}>
               <Menu.Target>
                 <button className="profile-trigger" type="button">
-                  <Avatar size={34} color="teal">{initials}</Avatar>
+                  <Avatar size={34} color={roleMeta.color}>{initials}</Avatar>
                   <span className="profile-name">{user.name}</span>
                   <IconChevronDown size={16} />
                 </button>
