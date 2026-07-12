@@ -6,11 +6,26 @@ CREATE TABLE
         `user_id` INTEGER NOT NULL AUTO_INCREMENT,
         `name` TEXT NOT NULL,
         `email` TEXT NOT NULL,
+        `password_hash` TEXT NOT NULL,
         `role` TEXT NOT NULL,
-        `department_id` INTEGER NOT NULL,
+        `department_id` INTEGER NULL,
+        `session_version` INTEGER NOT NULL DEFAULT 0,
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+        FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`) ON DELETE SET NULL ON UPDATE CASCADE,
         PRIMARY KEY (`user_id`)
+    );
+
+-- CreateTable
+CREATE TABLE
+    `password_reset_tokens` (
+        `password_reset_token_id` INTEGER NOT NULL AUTO_INCREMENT,
+        `user_id` INTEGER NOT NULL,
+        `token_hash` TEXT NOT NULL,
+        `expires_at` DATETIME NOT NULL,
+        `used_at` DATETIME NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+        PRIMARY KEY (`password_reset_token_id`)
     );
 
 -- CreateTable

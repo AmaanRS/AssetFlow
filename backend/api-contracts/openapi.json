@@ -1,0 +1,627 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AssetFlow API",
+    "version": "1.0.0",
+    "description": "HTTP API for AssetFlow. Authentication uses short-lived JWT bearer access tokens."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Account creation, authentication, password recovery, and session validation"
+    }
+  ],
+  "paths": {
+    "/api/auth/signup": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create an Employee account",
+        "description": "Creates a user account and returns a JWT access token. The request accepts only `name`, `email`, and `password`. The server always assigns the `Employee` role and leaves `departmentId` null; role and department cannot be submitted during signup. A department can be assigned, changed, or cleared later.",
+        "operationId": "signup",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              },
+              "example": {
+                "name": "Aarav Sharma",
+                "email": "aarav.sharma@example.com",
+                "password": "correct-horse-battery-staple"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Employee account created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature",
+                  "user": {
+                    "userId": 42,
+                    "name": "Aarav Sharma",
+                    "email": "aarav.sharma@example.com",
+                    "role": "Employee",
+                    "departmentId": null,
+                    "createdAt": "2026-07-12T08:15:30.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SignupBadRequest"
+          },
+          "409": {
+            "description": "An account with the supplied email already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "An account with this email already exists."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Log in with email and password",
+        "description": "Authenticates an existing user and returns a JWT access token.",
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "aarav.sharma@example.com",
+                "password": "correct-horse-battery-staple"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature",
+                  "user": {
+                    "userId": 42,
+                    "name": "Aarav Sharma",
+                    "email": "aarav.sharma@example.com",
+                    "role": "Employee",
+                    "departmentId": 1,
+                    "createdAt": "2026-07-12T08:15:30.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "description": "The email or password is incorrect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "message": "Invalid email or password."
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Request a password reset",
+        "description": "Starts password recovery. For account-enumeration resistance, the response is identical whether or not the email belongs to an account and does not confirm delivery.",
+        "operationId": "forgotPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              },
+              "example": {
+                "email": "aarav.sharma@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The password-reset request was accepted. The response does not reveal whether the account exists or whether an email was delivered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "If an account exists for that email, password reset instructions have been sent."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Reset a forgotten password",
+        "description": "Sets a new password using the single-use, time-limited reset token supplied by the password-recovery flow. A successful reset invalidates previously issued JWT sessions for the user.",
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              },
+              "example": {
+                "token": "password-reset-token",
+                "password": "new-correct-horse-battery-staple"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "Password reset successfully."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid, or the reset token is invalid, expired, or already used.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalidRequest": {
+                    "summary": "Invalid request data",
+                    "value": {
+                      "message": "Invalid request data.",
+                      "errors": {
+                        "password": "Password must contain at least 8 characters."
+                      }
+                    }
+                  },
+                  "invalidToken": {
+                    "summary": "Invalid reset token",
+                    "value": {
+                      "message": "The password reset token is invalid or has expired."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Validate the current session",
+        "description": "Validates the JWT signature, issuer, audience, expiration, user, and session version, then returns the current user. Password reset increments the session version, so tokens issued before a successful reset are rejected.",
+        "operationId": "validateSession",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The JWT session is valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                },
+                "example": {
+                  "user": {
+                    "userId": 42,
+                    "name": "Aarav Sharma",
+                    "email": "aarav.sharma@example.com",
+                    "role": "Employee",
+                    "departmentId": 1,
+                    "createdAt": "2026-07-12T08:15:30.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token returned by signup or login. Send it as `Authorization: Bearer <token>`."
+      }
+    },
+    "schemas": {
+      "SignupRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Aarav Sharma"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "aarav.sharma@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 72,
+            "x-maximumUtf8Bytes": 72,
+            "writeOnly": true,
+            "description": "Must contain at least 8 characters and at most 72 UTF-8 bytes. The byte limit is required by bcrypt and can be reached before 72 characters when multibyte characters are used.",
+            "example": "correct-horse-battery-staple"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "aarav.sharma@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 72,
+            "x-maximumUtf8Bytes": 72,
+            "writeOnly": true,
+            "description": "Must contain at least 8 characters and at most 72 UTF-8 bytes. The byte limit is required by bcrypt and can be reached before 72 characters when multibyte characters are used.",
+            "example": "correct-horse-battery-staple"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "aarav.sharma@example.com"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true,
+            "description": "Single-use, time-limited password-reset token.",
+            "example": "password-reset-token"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 72,
+            "x-maximumUtf8Bytes": 72,
+            "writeOnly": true,
+            "description": "The new account password. It must contain at least 8 characters and at most 72 UTF-8 bytes. The byte limit is required by bcrypt and can be reached before 72 characters when multibyte characters are used.",
+            "example": "new-correct-horse-battery-staple"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "role",
+          "departmentId",
+          "createdAt"
+        ],
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "example": 42
+          },
+          "name": {
+            "type": "string",
+            "example": "Aarav Sharma"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "aarav.sharma@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "Employee",
+              "DepartmentHead",
+              "AssetManager",
+              "Admin"
+            ],
+            "description": "The server-assigned account role. Signup always returns `Employee`.",
+            "example": "Employee"
+          },
+          "departmentId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 1,
+            "description": "The user's assigned department, or null until one is assigned. It can be assigned or updated after signup.",
+            "example": null
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-12T08:15:30.000Z"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "token",
+          "user"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Signed JWT access token.",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Request completed successfully."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Invalid request data."
+          },
+          "errors": {
+            "type": "object",
+            "description": "Optional field-specific validation messages.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "email": "A valid email is required."
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "The request body is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "message": "Invalid request data.",
+              "errors": {
+                "email": "A valid email is required."
+              }
+            }
+          }
+        }
+      },
+      "SignupBadRequest": {
+        "description": "The signup data is invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "invalidCredentials": {
+                "summary": "Invalid signup fields",
+                "value": {
+                  "message": "Invalid request data.",
+                  "errors": {
+                    "email": "A valid email is required.",
+                    "password": "Password must contain at least 8 characters."
+                  }
+                }
+              },
+              "roleRejected": {
+                "summary": "Role selection is not allowed",
+                "value": {
+                  "message": "Invalid request data.",
+                  "errors": {
+                    "request": "Unexpected fields: role."
+                  }
+                }
+              },
+              "departmentRejected": {
+                "summary": "Department selection is not allowed",
+                "value": {
+                  "message": "Invalid request data.",
+                  "errors": {
+                    "request": "Unexpected fields: departmentId."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "The bearer token is missing, malformed, invalid, or expired.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "message": "Invalid or expired token."
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "An unexpected server error occurred.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "message": "Internal server error."
+            }
+          }
+        }
+      }
+    }
+  }
+}

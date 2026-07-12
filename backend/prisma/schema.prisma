@@ -1,6 +1,5 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -11,8 +10,10 @@ model User {
   userId                      Int                  @id @default(autoincrement()) @map("user_id")
   name                        String
   email                       String               @unique
+  passwordHash                String               @map("password_hash")
   role                        String
-  departmentId                Int                  @map("department_id")
+  departmentId                Int?                 @map("department_id")
+  sessionVersion              Int                  @default(0) @map("session_version")
   createdAt                   DateTime             @default(now()) @map("created_at")
   activityLogs                ActivityLog[]        @relation("ActivityActor")
   createdAllocations          AssetAllocation[]    @relation("AllocationAllocator")
@@ -30,10 +31,23 @@ model User {
   outgoingTransfers           TransferRequest[]    @relation("TransferFromUser")
   requestedTransfers          TransferRequest[]    @relation("TransferRequester")
   incomingTransfers           TransferRequest[]    @relation("TransferToUser")
-  department                  Department           @relation("DepartmentMembers", fields: [departmentId], references: [departmentId])
+  passwordResetTokens         PasswordResetToken[]
+  department                  Department?          @relation("DepartmentMembers", fields: [departmentId], references: [departmentId], onDelete: SetNull)
 
   @@index([departmentId])
   @@map("users")
+}
+
+model PasswordResetToken {
+  passwordResetTokenId Int       @id @default(autoincrement()) @map("password_reset_token_id")
+  userId               Int       @map("user_id")
+  tokenHash            String    @map("token_hash")
+  expiresAt            DateTime  @map("expires_at")
+  usedAt               DateTime? @map("used_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  user                 User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 model Department {
